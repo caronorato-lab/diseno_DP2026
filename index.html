@@ -1,0 +1,339 @@
+import React, { useState, useMemo } from 'react';
+import { Search, UserCircle, Users, BarChart3, AlertCircle, CheckCircle2, Clock, Calendar } from 'lucide-react';
+
+// --- DATOS SIMULADOS (Basados 100% en tus archivos reales de enero a mayo) ---
+// En un entorno de producción real, aquí conectaríamos el Excel ya limpio.
+const rawData = [
+  { solicitud: "Solicitud diseño pieza gráfica Simposio Virtual", solicitante: "Nicolás", diseñador: "Pipo Sejín", fecha_solicitada: "2026-01-06", fecha_entrega: "2026-01-07" },
+  { solicitud: "Informe Catatumbo diagramación", solicitante: "Karen Jefe", diseñador: "Carolina Norato", fecha_solicitada: "2026-01-06", fecha_entrega: "2026-01-02" },
+  { solicitud: "solicitud revisión y aprobación carrusel masacre de El Tigre", solicitante: "Eilyn", diseñador: "Joaneth Morales", fecha_solicitada: "2026-01-06", fecha_entrega: "2026-01-08" },
+  { solicitud: "Ajustes texto Publicación PTEP", solicitante: "Bibiana Salmanca", diseñador: "Diego Rojas", fecha_solicitada: "2026-01-07", fecha_entrega: "2026-01-14" },
+  { solicitud: "RV: SOLICITUD FLYER REGIONAL SOACHA", solicitante: "Fernando Rivas", diseñador: "Daniel Rincón", fecha_solicitada: "2026-01-29", fecha_entrega: "2026-01-28" },
+  { solicitud: "Conversatorios en Salud Mental Enero", solicitante: "Lina Berrocal", diseñador: "Pipo Sejín", fecha_solicitada: "2026-01-30", fecha_entrega: "2026-01-29" },
+  { solicitud: "Mapa de la esperanza avances", solicitante: "Karen Jefe", diseñador: "Catalina Torres", fecha_solicitada: "2026-02-13", fecha_entrega: "2026-02-20" },
+  { solicitud: "Solicitud de diagramación de rutas", solicitante: "Nicolás", diseñador: "Pipo Sejín", fecha_solicitada: "2026-03-06", fecha_entrega: "2026-03-06" },
+  { solicitud: "informe de gestión DIC-Febrero equipo diseño", solicitante: "Karen Jefe", diseñador: "Carolina Norato", fecha_solicitada: "2026-03-02", fecha_entrega: "2026-03-02" },
+  { solicitud: "SOLICITUD: Diseño de pieza Jornada Buen Futuro", solicitante: "Daniela", diseñador: "Andres Barreto", fecha_solicitada: "2026-03-27", fecha_entrega: "2026-03-26" },
+  { solicitud: "RV: Revisión de línea gráfica (Curso VBG - DDMAG)", solicitante: "Valentina", diseñador: "Joaneth Morales", fecha_solicitada: "2026-03-26", fecha_entrega: "2026-03-27" },
+  { solicitud: "Contenido Botón JAC", solicitante: "viviana vargas", diseñador: "Catalina Torres", fecha_solicitada: "2026-04-28", fecha_entrega: null },
+  { solicitud: "SOLITICITUD: Diseño foto-carrusel mujeres amputadas", solicitante: "Daniela", diseñador: "Carolina Norato", fecha_solicitada: null, fecha_entrega: null },
+  { solicitud: "Jornada de vacunación mayo", solicitante: "Lina Berrocal", diseñador: "Daniel Rincón", fecha_solicitada: "2026-05-04", fecha_entrega: null },
+  { solicitud: "Favor diseño carrusel AT 011 2026", solicitante: "Alexander garzon", diseñador: "Pipo Sejín", fecha_solicitada: "2026-04-30", fecha_entrega: "2026-04-29" },
+  { solicitud: "Diseño carrusel protesta-29 de abril", solicitante: "Sonia Huerfano", diseñador: "Diego Rojas", fecha_solicitada: "2026-04-30", fecha_entrega: null },
+  { solicitud: "propuesta estrategia comunicación SIGI-SIGCO", solicitante: "Bibiana Salmanca", diseñador: "Carolina Norato", fecha_solicitada: "2026-04-30", fecha_entrega: null },
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // --- LÓGICA CORE (Porteada desde tu Python) ---
+  const dataProcesada = useMemo(() => {
+    return rawData.map(item => {
+      let estado = "Pendiente / Sin dato";
+      let diff = 0;
+
+      if (item.fecha_solicitada && item.fecha_entrega) {
+        const fSolicitada = new Date(item.fecha_solicitada);
+        const fEntrega = new Date(item.fecha_entrega);
+        diff = (fEntrega - fSolicitada) / (1000 * 60 * 60 * 24); // Diferencia en días
+        
+        if (diff <= 0) {
+          estado = "A Tiempo";
+        } else {
+          estado = "Con Retraso";
+        }
+      }
+
+      return { ...item, estado, diferencia_dias: diff };
+    });
+  }, []);
+
+  // --- CÁLCULOS DE AGRUPACIÓN ---
+  const statsGenerales = useMemo(() => {
+    const total = dataProcesada.length;
+    const aTiempo = dataProcesada.filter(d => d.estado === "A Tiempo").length;
+    const conRetraso = dataProcesada.filter(d => d.estado === "Con Retraso").length;
+    const pendientes = dataProcesada.filter(d => d.estado === "Pendiente / Sin dato").length;
+    return { total, aTiempo, conRetraso, pendientes };
+  }, [dataProcesada]);
+
+  const statsPorDisenador = useMemo(() => {
+    const agrupado = {};
+    dataProcesada.forEach(d => {
+      if (!agrupado[d.diseñador]) {
+        agrupado[d.diseñador] = { total: 0, aTiempo: 0, conRetraso: 0, pendientes: 0 };
+      }
+      agrupado[d.diseñador].total += 1;
+      if (d.estado === "A Tiempo") agrupado[d.diseñador].aTiempo += 1;
+      if (d.estado === "Con Retraso") agrupado[d.diseñador].conRetraso += 1;
+      if (d.estado === "Pendiente / Sin dato") agrupado[d.diseñador].pendientes += 1;
+    });
+    return Object.entries(agrupado).sort((a, b) => b[1].total - a[1].total);
+  }, [dataProcesada]);
+
+  const statsPorSolicitante = useMemo(() => {
+    const agrupado = {};
+    dataProcesada.forEach(d => {
+      if (!agrupado[d.solicitante]) {
+        agrupado[d.solicitante] = { total: 0, aTiempo: 0, conRetraso: 0, pendientes: 0 };
+      }
+      agrupado[d.solicitante].total += 1;
+      if (d.estado === "A Tiempo") agrupado[d.solicitante].aTiempo += 1;
+      if (d.estado === "Con Retraso") agrupado[d.solicitante].conRetraso += 1;
+      if (d.estado === "Pendiente / Sin dato") agrupado[d.solicitante].pendientes += 1;
+    });
+    return Object.entries(agrupado).sort((a, b) => b[1].total - a[1].total);
+  }, [dataProcesada]);
+
+  const resultadosBusqueda = useMemo(() => {
+    if (!searchTerm) return dataProcesada;
+    const term = searchTerm.toLowerCase();
+    return dataProcesada.filter(d => 
+      d.solicitud.toLowerCase().includes(term) || 
+      d.solicitante.toLowerCase().includes(term) ||
+      d.diseñador.toLowerCase().includes(term)
+    );
+  }, [searchTerm, dataProcesada]);
+
+  // --- RENDERIZADO DE COMPONENTES DE UI ---
+  const renderBadge = (estado) => {
+    if (estado === 'A Tiempo') return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold tracking-wide">A Tiempo</span>;
+    if (estado === 'Con Retraso') return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold tracking-wide">Con Retraso</span>;
+    return <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-bold tracking-wide">Pendiente</span>;
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-200">
+      
+      {/* HEADER NAVBAR */}
+      <header className="bg-indigo-900 text-white p-6 shadow-lg">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-800 rounded-lg">
+              <BarChart3 className="w-8 h-8 text-indigo-300" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">DataDesign DP</h1>
+              <p className="text-indigo-300 text-sm font-medium">Panel de Análisis de Tráfico de Diseño - 2026</p>
+            </div>
+          </div>
+          
+          <nav className="flex bg-indigo-800/50 p-1 rounded-xl">
+            {[
+              { id: 'dashboard', icon: BarChart3, label: 'General' },
+              { id: 'search', icon: Search, label: 'Buscador' },
+              { id: 'designers', icon: UserCircle, label: 'Diseñadores' },
+              { id: 'requesters', icon: Users, label: 'Solicitantes' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                  activeTab === tab.id 
+                    ? 'bg-white text-indigo-900 shadow-sm' 
+                    : 'text-indigo-200 hover:text-white hover:bg-indigo-700'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="max-w-7xl mx-auto p-6 mt-4">
+        
+        {/* TAB 1: DASHBOARD GENERAL */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+              <Calendar className="w-5 h-5" /> 
+              Estado General de Entregas
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div className="p-4 bg-blue-50 rounded-xl text-blue-600"><BarChart3 className="w-8 h-8" /></div>
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Total Solicitudes</p>
+                  <p className="text-3xl font-black text-slate-800">{statsGenerales.total}</p>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div className="p-4 bg-emerald-50 rounded-xl text-emerald-600"><CheckCircle2 className="w-8 h-8" /></div>
+                <div>
+                  <p className="text-sm font-medium text-slate-400">A Tiempo</p>
+                  <p className="text-3xl font-black text-slate-800">{statsGenerales.aTiempo}</p>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div className="p-4 bg-red-50 rounded-xl text-red-600"><AlertCircle className="w-8 h-8" /></div>
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Con Retraso</p>
+                  <p className="text-3xl font-black text-slate-800">{statsGenerales.conRetraso}</p>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div className="p-4 bg-amber-50 rounded-xl text-amber-600"><Clock className="w-8 h-8" /></div>
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Pendientes</p>
+                  <p className="text-3xl font-black text-slate-800">{statsGenerales.pendientes}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mt-8">
+              <h3 className="text-lg font-bold text-slate-700 mb-4">La cruda verdad de las métricas</h3>
+              <p className="text-slate-600 leading-relaxed">
+                Parce, si analizamos estos datos, estamos viendo que de un total de <strong className="text-indigo-600">{statsGenerales.total}</strong> muestras registradas en esta vista, 
+                tienen <strong className="text-red-500">{statsGenerales.conRetraso}</strong> retrasos confirmados y un montón de <strong className="text-amber-500">{statsGenerales.pendientes}</strong> pendientes 
+                (muchos de ellos porque simplemente no anotaron la fecha de entrega final en el Excel original de Mayo). 
+                Hay que empezar a apretar tuercas con el equipo para que documenten mejor o los números seguirán en el limbo.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: BUSCADOR */}
+        {activeTab === 'search' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="relative max-w-2xl mx-auto">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input 
+                  type="text" 
+                  placeholder="Busca por pieza, diseñador o quién lo pidió (Ej: Flyer, Pipo, Karen)..."
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500 shadow-inner outline-none transition-all"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider">
+                  <tr>
+                    <th className="p-4 border-b border-slate-100">Solicitud</th>
+                    <th className="p-4 border-b border-slate-100">Solicitante</th>
+                    <th className="p-4 border-b border-slate-100">Diseñador</th>
+                    <th className="p-4 border-b border-slate-100">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {resultadosBusqueda.length > 0 ? (
+                    resultadosBusqueda.map((row, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 font-medium text-slate-700">{row.solicitud}</td>
+                        <td className="p-4 text-slate-500">{row.solicitante}</td>
+                        <td className="p-4 text-slate-500">{row.diseñador}</td>
+                        <td className="p-4">{renderBadge(row.estado)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-slate-400 font-medium">
+                        No se encontró nada con "{searchTerm}". ¿Seguro que así lo escribieron en el Excel?
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: DISEÑADORES */}
+        {activeTab === 'designers' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+              <UserCircle className="w-5 h-5" /> 
+              Desempeño del Equipo de Diseño
+            </h2>
+            <div className="grid grid-cols-1 gap-4">
+              {statsPorDisenador.map(([nombre, stats], i) => (
+                <div key={nombre} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 w-full md:w-1/3">
+                    <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg">
+                      {nombre.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">{nombre}</h4>
+                      <p className="text-xs text-slate-500 font-medium">{stats.total} solicitudes asignadas</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex w-full md:w-2/3 gap-2 h-8 rounded-full overflow-hidden bg-slate-100">
+                    {stats.aTiempo > 0 && (
+                      <div style={{ width: `${(stats.aTiempo / stats.total) * 100}%` }} className="bg-emerald-500 flex items-center justify-center text-[10px] font-bold text-white shadow-inner" title={`${stats.aTiempo} A Tiempo`}>
+                        {stats.aTiempo}
+                      </div>
+                    )}
+                    {stats.conRetraso > 0 && (
+                      <div style={{ width: `${(stats.conRetraso / stats.total) * 100}%` }} className="bg-red-500 flex items-center justify-center text-[10px] font-bold text-white shadow-inner" title={`${stats.conRetraso} Con Retraso`}>
+                        {stats.conRetraso}
+                      </div>
+                    )}
+                    {stats.pendientes > 0 && (
+                      <div style={{ width: `${(stats.pendientes / stats.total) * 100}%` }} className="bg-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-inner" title={`${stats.pendientes} Pendientes`}>
+                        {stats.pendientes}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-4 text-xs font-semibold text-slate-500 min-w-[200px] justify-end">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> A Tiempo</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Retraso</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-slate-300"></div> Pendiente</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: SOLICITANTES */}
+        {activeTab === 'requesters' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+              <Users className="w-5 h-5" /> 
+              Top Clientes Internos (Los que más piden)
+            </h2>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold tracking-wider">
+                  <tr>
+                    <th className="p-4 border-b border-slate-100">Nombre del Solicitante</th>
+                    <th className="p-4 border-b border-slate-100 text-center">Total Pedidos</th>
+                    <th className="p-4 border-b border-slate-100 text-center">Entregas a Tiempo</th>
+                    <th className="p-4 border-b border-slate-100 text-center">Sufrieron Retraso</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {statsPorSolicitante.map(([nombre, stats], i) => (
+                    <tr key={nombre} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-bold text-slate-700 flex items-center gap-3">
+                        <span className="text-slate-300 font-black text-lg w-6">{i + 1}.</span>
+                        {nombre}
+                      </td>
+                      <td className="p-4 text-center font-black text-indigo-600">{stats.total}</td>
+                      <td className="p-4 text-center font-medium text-emerald-600">{stats.aTiempo}</td>
+                      <td className="p-4 text-center font-medium text-red-600">{stats.conRetraso}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </main>
+
+    </div>
+  );
+}
